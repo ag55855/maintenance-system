@@ -10,14 +10,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// الاتصال بقاعدة البيانات SQLite
 const db = new sqlite3.Database('./database.db', (err) => {
     if (err) console.error('خطأ في الاتصال بقاعدة البيانات:', err.message);
     else console.log('تم الاتصال بقاعدة البيانات SQLite بنجاح.');
 });
 
 db.serialize(() => {
-    // جدول الأجهزة المطور بالأسعار والتكاليف
     db.run(`CREATE TABLE IF NOT EXISTS tickets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         orderCode TEXT,
@@ -35,7 +33,6 @@ db.serialize(() => {
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // جدول المخزون
     db.run(`CREATE TABLE IF NOT EXISTS inventory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
@@ -44,7 +41,6 @@ db.serialize(() => {
     )`);
 });
 
-// دالة توليد رقم طلب مميز وفريد: ORD-YYYYMMDD-XXXX
 function generateOrderCode() {
     const d = new Date();
     const dateStr = d.getFullYear().toString() +
@@ -54,10 +50,9 @@ function generateOrderCode() {
     return `ORD-${dateStr}-${randomNum}`;
 }
 
-// ================= API الأجهزة =================
+// جلب الأجهزة التي لم تُحدد حالتها بـ "إنهاء واختفاء" فقط
 app.get('/api/tickets', (req, res) => {
-    // جلب الأجهزة التي لم يتم تسليمها فقط (لاختفائها من القائمة الأساسية)
-    db.all("SELECT * FROM tickets WHERE status != 'تم التسليم' ORDER BY id DESC", [], (err, rows) => {
+    db.all("SELECT * FROM tickets WHERE status != 'إنهاء واختفاء' ORDER BY id DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
@@ -81,10 +76,7 @@ app.post('/api/tickets', (req, res) => {
         `INSERT INTO tickets (orderCode, customerName, phone, deviceType, deviceSerial, problem, estimatedHours, repairCost, partCost, totalCost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [orderCode, customerName, phone, deviceType, deviceSerial || 'غير محدد', problem, Number(estimatedHours) || 2, rCost, pCost, totalCost],
         function (err) {
-            if (err) {
-                console.error("SQL Error:", err.message);
-                return res.status(500).json({ error: err.message });
-            }
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, orderCode });
         }
     );
@@ -106,7 +98,7 @@ app.put('/api/tickets/:id', (req, res) => {
     );
 });
 
-// ================= API المخزون =================
+// APIs المخزون
 app.get('/api/inventory', (req, res) => {
     db.all('SELECT * FROM inventory ORDER BY id DESC', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
