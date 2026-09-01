@@ -4,13 +4,12 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// الاتصال بـ Turso
+// الاتصال بـ Turso عبر متغيرات البيئة
 const db = createClient({
     url: process.env.TURSO_DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
@@ -42,7 +41,6 @@ async function initDB() {
             quantity INTEGER,
             price REAL
         )`);
-        console.log('تم تجهيز قاعدة بيانات Turso بنجاح.');
     } catch (err) {
         console.error('خطأ أثناء إنشاء الجداول:', err.message);
     }
@@ -163,6 +161,5 @@ app.delete('/api/inventory/:id', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`السيرفر يعمل بنجاح على: http://localhost:${PORT}`);
-});
+// التصدير لمنصة Vercel بدلاً من app.listen
+module.exports = app;
